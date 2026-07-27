@@ -247,17 +247,17 @@ async fn diagnose_one(
     store.update_lead_diagnosis(
         id,
         &serde_json::to_string(&diagnosis)?,
-        &diagnosis.tech_stack,
+        &diagnosis.tech_stack.as_string(),
         diagnosis.digital_maturity,
-        &diagnosis.pain_points,
+        &diagnosis.pain_points.as_string(),
         &diagnosis.industry,
     )?;
 
     let mut scored = lead.clone();
     scored.industry = diagnosis.industry.clone();
-    scored.tech_stack = diagnosis.tech_stack.clone();
+    scored.tech_stack = diagnosis.tech_stack.as_string();
     scored.digital_maturity = Some(diagnosis.digital_maturity);
-    scored.pain_points = diagnosis.pain_points.clone();
+    scored.pain_points = diagnosis.pain_points.as_string();
 
     let score_result = scorer::Scorer::score(llm, &scored).await?;
     store.update_lead_score(

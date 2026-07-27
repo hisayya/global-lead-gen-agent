@@ -1,38 +1,67 @@
-use anyhow::{Result, anyhow};
-use async_openai::Client as OpenAIClient;
-use async_openai::config::OpenAIConfig;
-use async_openai::types::chat::{
-    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
-    ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
-    ChatCompletionRequestUserMessageContent, CreateChatCompletionRequestArgs,
-};
-use serde::Deserialize;
+use anyhow::{anyhow, Result};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::sync::Semaphore;
 
 use crate::config::AppConfig;
 
 pub struct LlmClient {
-    client: OpenAIClient<OpenAIConfig>,
+    http: Client,
+    base_url: String,
+    api_key: String,
     model: String,
     semaphore: Semaphore,
 }
 
+#[derive(Serialize)]
+struct ChatRequest<'a> {
+    model: &'a str,
+    messages: Vec<ChatMessage<'a>>,
+    max_tokens: u32,
+    temperature: f32,
+    thinking: ThinkingConfig,
+    reasoning_effort: &'a str,
+}
+
+#[derive(Serialize)]
+struct ThinkingConfig {
+    #[serde(rename = "type")]
+    thinking_type: &'static str,
+}
+
+#[derive(Serialize)]
+struct ChatMessage<'a> {
+    role: &'a str,
+    content: &'a str,
+}
+
+#[derive(Deserialize)]
+struct ChatResponse {
+    choices: Vec<ChatChoice>,
+}
+
+#[derive(Deserialize)]
+struct ChatChoice {
+    message: ChatResponseMessage,
+}
+
+#[derive(Deserialize)]
+struct ChatResponseMessage {
+    content: Option<String>,
+}
+
 impl LlmClient {
     pub fn new(cfg: &AppConfig) -> Result<Self> {
-        let openai_config = OpenAIConfig::new()
-            .with_api_base(&cfg.ark_base_url)
-            .with_api_key(&cfg.ark_api_key);
-
-        let http_client = reqwest::Client::builder()
-            .timeout(Duration::from_mins(2))
+        let http = Client::builder()
+            .timeout(Duration::from_mins(3))
             .build()
             .map_err(|e| anyhow!("failed to build reqwest client for LLM: {e}"))?;
 
-        let client = OpenAIClient::with_config(openai_config).with_http_client(http_client);
-
         Ok(Self {
-            client,
+            http,
+            base_url: cfg.ark_base_url.clone(),
+            api_key: cfg.ark_api_key.clone(),
             model: cfg.ark_model.clone(),
             semaphore: Semaphore::new(5),
         })
@@ -45,31 +74,54 @@ impl LlmClient {
             .await
             .map_err(|_| anyhow!("semaphore closed"))?;
 
-        let system_msg = ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
-            content: ChatCompletionRequestSystemMessageContent::Text(system.to_string()),
-            name: None,
-        });
+        let req = ChatRequest {
+            model: &self.model,
+            messages: vec![
+                ChatMessage {
+                    role: "system",
+                    content: system,
+                },
+                ChatMessage {
+                    role: "user",
+                    content: user,
+                },
+            ],
+            max_tokens: 262144,
+            temperature: 0.1,
+            thinking: ThinkingConfig {
+                thinking_type: "enabled",
+            },
+            reasoning_effort: "high",
+        };
 
-        let user_msg = ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
-            content: ChatCompletionRequestUserMessageContent::Text(user.to_string()),
-            name: None,
-        });
+        let url = format!("{}/chat/completions", self.base_url);
 
-        let request = CreateChatCompletionRequestArgs::default()
-            .model(&self.model)
-            .messages(vec![system_msg, user_msg])
-            .temperature(0.7_f32)
-            .max_completion_tokens(4096u32)
-            .build()?;
+        let resp = self
+            .http
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&req)
+            .send()
+            .await
+            .map_err(|e| anyhow!("LLM request failed: {e}"))?;
 
-        let response = self.client.chat().create(request).await?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(anyhow!("LLM API error {status}: {body}"));
+        }
 
-        let content = response
+        let chat_resp: ChatResponse = resp
+            .json()
+            .await
+            .map_err(|e| anyhow!("failed to parse LLM response: {e}"))?;
+
+        let content = chat_resp
             .choices
             .into_iter()
             .next()
             .and_then(|c| c.message.content)
-            .unwrap_or_default();
+            .ok_or_else(|| anyhow!("LLM returned empty response"))?;
 
         Ok(content)
     }
@@ -89,7 +141,8 @@ impl LlmClient {
             .trim_end_matches("```")
             .trim();
 
-        let parsed: T = serde_json::from_str(trimmed)?;
+        let parsed: T = serde_json::from_str(trimmed)
+            .map_err(|e| anyhow!("failed to parse JSON from LLM: {e}\nraw: {trimmed}"))?;
         Ok(parsed)
     }
 }

@@ -87,9 +87,41 @@ pub struct DiagnosisResult {
     pub industry: String,
     pub business_model: String,
     pub estimated_size: String,
-    pub tech_stack: String,
+    pub tech_stack: TechStackField,
     pub digital_maturity: i32,
-    pub pain_points: String,
+    pub pain_points: PainPointsField,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TechStackField {
+    Text(String),
+    List(Vec<String>),
+}
+
+impl TechStackField {
+    pub fn as_string(&self) -> String {
+        match self {
+            Self::Text(s) => s.clone(),
+            Self::List(v) => v.join(", "),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PainPointsField {
+    Text(String),
+    List(Vec<String>),
+}
+
+impl PainPointsField {
+    pub fn as_string(&self) -> String {
+        match self {
+            Self::Text(s) => s.clone(),
+            Self::List(v) => v.join("; "),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
