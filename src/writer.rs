@@ -40,11 +40,19 @@ impl Writer {
     pub async fn generate_email(llm: &LlmClient, lead: &Lead) -> Result<EmailDraft> {
         let user_prompt = format!(
             "Recipient: {} at {}\nTheir problem: {}\nYour solution: {}\nDev opportunity: {}\nEstimated value: {}\n\nDiagnosis:\n{}",
-            if lead.name.is_empty() { "there" } else { &lead.name },
+            if lead.name.is_empty() {
+                "there"
+            } else {
+                &lead.name
+            },
             lead.company,
             lead.pain_points,
             lead.strategy,
-            if lead.industry.is_empty() { "custom development" } else { &lead.industry },
+            if lead.industry.is_empty() {
+                "custom development"
+            } else {
+                &lead.industry
+            },
             "varies",
             lead.diagnosis
         );
@@ -53,10 +61,7 @@ impl Writer {
 
         let draft: EmailDraft = llm.complete_json(WRITER_SYSTEM, &user_prompt).await?;
 
-        let qc_prompt = format!(
-            "Subject: {}\n\nBody:\n{}",
-            draft.subject, draft.body
-        );
+        let qc_prompt = format!("Subject: {}\n\nBody:\n{}", draft.subject, draft.body);
 
         let final_draft: EmailDraft = llm.complete_json(QC_SYSTEM, &qc_prompt).await?;
 
@@ -86,7 +91,7 @@ impl Writer {
                 return Ok(EmailDraft {
                     subject: String::new(),
                     body: String::new(),
-                })
+                });
             }
         };
 

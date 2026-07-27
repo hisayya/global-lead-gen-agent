@@ -4,7 +4,7 @@ use tracing::info;
 use crate::llm::LlmClient;
 use crate::models::{DiagnosisResult, Lead};
 
-const DIAGNOSIS_SYSTEM: &str = r#"You are a website diagnostic expert. Analyze the provided website content and output a JSON object with these fields:
+const DIAGNOSIS_SYSTEM: &str = r"You are a website diagnostic expert. Analyze the provided website content and output a JSON object with these fields:
 - industry: the business industry
 - business_model: how they make money
 - estimated_size: company size (small/medium/large/enterprise)
@@ -12,7 +12,7 @@ const DIAGNOSIS_SYSTEM: &str = r#"You are a website diagnostic expert. Analyze t
 - digital_maturity: 1-5 score (1=very outdated, 5=modern)
 - pain_points: specific technical problems you can see (old UI, no mobile, no customer portal, manual processes, etc.)
 
-Output ONLY valid JSON, no markdown."#;
+Output ONLY valid JSON, no markdown.";
 
 pub struct Diagnostician;
 
@@ -27,9 +27,7 @@ impl Diagnostician {
 
         info!(company = %lead.company, "diagnosing website");
 
-        let result: DiagnosisResult = llm
-            .complete_json(DIAGNOSIS_SYSTEM, &user_prompt)
-            .await?;
+        let result: DiagnosisResult = llm.complete_json(DIAGNOSIS_SYSTEM, &user_prompt).await?;
 
         Ok(result)
     }

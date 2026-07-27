@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use reqwest::Client;
 use serde::Deserialize;
 use tracing::{debug, warn};
@@ -25,13 +25,13 @@ pub struct GitHubProspector {
 }
 
 impl GitHubProspector {
-    pub fn new(user_agent: String) -> Self {
+    pub fn new(user_agent: String) -> Result<Self> {
         let client = Client::builder()
             .user_agent(user_agent)
             .timeout(std::time::Duration::from_secs(30))
             .build()
-            .expect("failed to build reqwest client");
-        Self { client }
+            .map_err(|e| anyhow!("failed to build reqwest client: {e}"))?;
+        Ok(Self { client })
     }
 
     pub async fn search_help_wanted(&self, queries: &[String]) -> Result<Vec<Lead>> {
@@ -41,7 +41,7 @@ impl GitHubProspector {
             let q = if query.contains("site:github.com") {
                 query.replace("site:github.com ", "")
             } else {
-                query.to_string()
+                query.clone()
             };
 
             debug!(query = q.as_str(), "searching GitHub");
@@ -89,7 +89,11 @@ impl GitHubProspector {
                             company_pages: format!(
                                 "{}\n{}",
                                 item.title,
-                                item.body.unwrap_or_default().chars().take(10000).collect::<String>()
+                                item.body
+                                    .unwrap_or_default()
+                                    .chars()
+                                    .take(10000)
+                                    .collect::<String>()
                             ),
                             diagnosis: String::new(),
                             tech_stack: String::new(),

@@ -43,10 +43,7 @@ impl AppConfig {
             daily_send_limit: env_u32_or("DAILY_SEND_LIMIT", 25),
             request_delay_min_sec: env_u64_or("REQUEST_DELAY_MIN_SEC", 3),
             request_delay_max_sec: env_u64_or("REQUEST_DELAY_MAX_SEC", 5),
-            user_agent: env_str_or(
-                "USER_AGENT",
-                "GlobalDevRadar/0.1 (contact: unknown)",
-            ),
+            user_agent: env_str_or("USER_AGENT", "GlobalDevRadar/0.1 (contact: unknown)"),
         })
     }
 }

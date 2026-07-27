@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use rusqlite::Connection;
 
 use crate::models::{Lead, LeadStatus, Outreach};
@@ -104,7 +104,7 @@ impl Store {
                 lead.digital_maturity,
                 lead.pain_points,
                 lead.score,
-                lead.qualified as i32,
+                i32::from(lead.qualified),
                 lead.strategy,
                 lead.status.as_str(),
                 now,
@@ -134,22 +134,38 @@ impl Store {
         self.conn.execute(
             "UPDATE leads SET diagnosis = ?1, tech_stack = ?2, digital_maturity = ?3,
              pain_points = ?4, industry = ?5, status = 'enriched' WHERE id = ?6",
-            rusqlite::params![diagnosis, tech_stack, digital_maturity, pain_points, industry, id],
+            rusqlite::params![
+                diagnosis,
+                tech_stack,
+                digital_maturity,
+                pain_points,
+                industry,
+                id
+            ],
         )?;
         Ok(())
     }
 
-    pub fn update_lead_score(&self, id: i64, score: i32, qualified: bool, reason: &str) -> Result<()> {
+    pub fn update_lead_score(
+        &self,
+        id: i64,
+        score: i32,
+        qualified: bool,
+        reason: &str,
+    ) -> Result<()> {
         self.conn.execute(
             "UPDATE leads SET score = ?1, qualified = ?2 WHERE id = ?3",
-            rusqlite::params![score, qualified as i32, id],
+            rusqlite::params![score, i32::from(qualified), id],
         )?;
         if !reason.is_empty() {
-            let existing: String = self.conn.query_row(
-                "SELECT strategy FROM leads WHERE id = ?1",
-                rusqlite::params![id],
-                |row| row.get(0),
-            ).unwrap_or_default();
+            let existing: String = self
+                .conn
+                .query_row(
+                    "SELECT strategy FROM leads WHERE id = ?1",
+                    rusqlite::params![id],
+                    |row| row.get(0),
+                )
+                .unwrap_or_default();
             let combined = if existing.is_empty() {
                 format!("Score reason: {reason}")
             } else {
@@ -273,7 +289,14 @@ impl Store {
         self.conn.execute(
             "INSERT INTO outreach (lead_id, channel, sequence_step, subject, body, sent_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            rusqlite::params![o.lead_id, o.channel, o.sequence_step, o.subject, o.body, now],
+            rusqlite::params![
+                o.lead_id,
+                o.channel,
+                o.sequence_step,
+                o.subject,
+                o.body,
+                now
+            ],
         )?;
         Ok(self.conn.last_insert_rowid())
     }
@@ -307,12 +330,13 @@ impl Store {
     }
 }
 
-fn parse_dt(s: String) -> Option<chrono::DateTime<chrono::Utc>> {
-    chrono::DateTime::parse_from_rfc3339(&s)
+#[expect(clippy::needless_pass_by_value, reason = "takes SQL row value")]
+fn parse_dt(s: String) -> Option<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(&s)
         .ok()
-        .map(|t| t.with_timezone(&chrono::Utc))
+        .map(|t| t.with_timezone(&Utc))
 }
 
-fn parse_dt_opt(s: Option<String>) -> Option<chrono::DateTime<chrono::Utc>> {
-    s.and_then(|v| parse_dt(v))
+fn parse_dt_opt(s: Option<String>) -> Option<DateTime<Utc>> {
+    s.and_then(parse_dt)
 }

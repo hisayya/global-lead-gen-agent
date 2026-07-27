@@ -8,34 +8,34 @@ use crate::config::AppConfig;
 use crate::llm::LlmClient;
 use crate::models::ReplyClassification;
 
-const CLASSIFY_SYSTEM: &str = r#"Classify this email reply. Output JSON:
-{
-  "class": "<one of: interested, not_now, objection, reject, ooo>",
-  "suggested_action": "<what to do next>"
-}
-
-- interested: wants to talk, book a call, learn more
-- not_now: maybe later, not right now
-- objection: pricing concern, need more info, specific question
-- reject: not interested, stop contacting
-- ooo: out of office / auto-reply
-
-Output ONLY valid JSON."#;
+const CLASSIFY_SYSTEM: &str = concat!(
+    "Classify this email reply. Output JSON:\n",
+    "{\n",
+    "  \"class\": \"<one of: interested, not_now, objection, reject, ooo>\",\n",
+    "  \"suggested_action\": \"<what to do next>\"\n",
+    "}\n\n",
+    "- interested: wants to talk, book a call, learn more\n",
+    "- not_now: maybe later, not right now\n",
+    "- objection: pricing concern, need more info, specific question\n",
+    "- reject: not interested, stop contacting\n",
+    "- ooo: out of office / auto-reply\n\n",
+    "Output ONLY valid JSON."
+);
 
 pub struct Analyzer {
-    imap_host: String,
-    imap_port: u16,
-    imap_user: String,
-    imap_pass: String,
+    host: String,
+    port: u16,
+    user: String,
+    pass: String,
 }
 
 impl Analyzer {
     pub fn new(cfg: &AppConfig) -> Self {
         Self {
-            imap_host: cfg.imap_host.clone(),
-            imap_port: cfg.imap_port,
-            imap_user: cfg.imap_user.clone(),
-            imap_pass: cfg.imap_pass.clone(),
+            host: cfg.imap_host.clone(),
+            port: cfg.imap_port,
+            user: cfg.imap_user.clone(),
+            pass: cfg.imap_pass.clone(),
         }
     }
 
@@ -46,14 +46,13 @@ impl Analyzer {
         info!("connecting to IMAP");
 
         let tls = TlsConnector::new();
-        let tcp = tokio::net::TcpStream::connect((self.imap_host.as_str(), self.imap_port))
-            .await?;
-        let tls_stream = tls.connect(&self.imap_host, tcp).await?;
+        let tcp = tokio::net::TcpStream::connect((self.host.as_str(), self.port)).await?;
+        let tls_stream = tls.connect(&self.host, tcp).await?;
 
         let client = async_imap::Client::new(tls_stream);
 
         let mut session = client
-            .login(&self.imap_user, &self.imap_pass)
+            .login(&self.user, &self.pass)
             .await
             .map_err(|e| anyhow::anyhow!("IMAP login failed: {:?}", e.0))?;
 
@@ -79,7 +78,7 @@ impl Analyzer {
                         .headers
                         .iter()
                         .find(|h| h.get_key() == "Subject")
-                        .map(|h| h.get_value())
+                        .map(mailparse::MailHeader::get_value)
                         .unwrap_or_default();
 
                     let body_text = parsed.get_body().unwrap_or_default();

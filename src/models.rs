@@ -27,6 +27,7 @@ pub struct Lead {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum LeadStatus {
     New,
     Enriched,
@@ -39,29 +40,29 @@ pub enum LeadStatus {
 }
 
 impl LeadStatus {
-    pub fn as_str(&self) -> &str {
+    pub const fn as_str(&self) -> &str {
         match self {
-            LeadStatus::New => "new",
-            LeadStatus::Enriched => "enriched",
-            LeadStatus::Contacted => "contacted",
-            LeadStatus::Replied => "replied",
-            LeadStatus::Meeting => "meeting",
-            LeadStatus::Proposal => "proposal",
-            LeadStatus::Won => "won",
-            LeadStatus::Lost => "lost",
+            Self::New => "new",
+            Self::Enriched => "enriched",
+            Self::Contacted => "contacted",
+            Self::Replied => "replied",
+            Self::Meeting => "meeting",
+            Self::Proposal => "proposal",
+            Self::Won => "won",
+            Self::Lost => "lost",
         }
     }
 
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "new" => Some(LeadStatus::New),
-            "enriched" => Some(LeadStatus::Enriched),
-            "contacted" => Some(LeadStatus::Contacted),
-            "replied" => Some(LeadStatus::Replied),
-            "meeting" => Some(LeadStatus::Meeting),
-            "proposal" => Some(LeadStatus::Proposal),
-            "won" => Some(LeadStatus::Won),
-            "lost" => Some(LeadStatus::Lost),
+            "new" => Some(Self::New),
+            "enriched" => Some(Self::Enriched),
+            "contacted" => Some(Self::Contacted),
+            "replied" => Some(Self::Replied),
+            "meeting" => Some(Self::Meeting),
+            "proposal" => Some(Self::Proposal),
+            "won" => Some(Self::Won),
+            "lost" => Some(Self::Lost),
             _ => None,
         }
     }

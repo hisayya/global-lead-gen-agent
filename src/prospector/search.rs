@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use rand::Rng;
 use regex::Regex;
 use reqwest::Client;
@@ -9,24 +9,22 @@ use crate::models::{Lead, LeadStatus};
 
 pub struct DuckDuckGoProspector {
     client: Client,
-    user_agent: String,
     delay_min: u64,
     delay_max: u64,
 }
 
 impl DuckDuckGoProspector {
-    pub fn new(user_agent: String, delay_min: u64, delay_max: u64) -> Self {
+    pub fn new(user_agent: String, delay_min: u64, delay_max: u64) -> Result<Self> {
         let client = Client::builder()
-            .user_agent(user_agent.clone())
+            .user_agent(user_agent)
             .timeout(std::time::Duration::from_secs(30))
             .build()
-            .expect("failed to build reqwest client");
-        Self {
+            .map_err(|e| anyhow!("failed to build reqwest client: {e}"))?;
+        Ok(Self {
             client,
-            user_agent,
             delay_min,
             delay_max,
-        }
+        })
     }
 
     pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>> {
@@ -47,8 +45,8 @@ impl DuckDuckGoProspector {
         let body = resp.text().await?;
         let document = Html::parse_document(&body);
 
-        let result_selector =
-            Selector::parse(".result__a").expect("invalid selector for result__a");
+        let result_selector = Selector::parse(".result__a")
+            .map_err(|e| anyhow!("invalid selector for result__a: {e}"))?;
 
         let mut results = Vec::new();
         for element in document.select(&result_selector).take(limit) {
@@ -78,8 +76,8 @@ impl DuckDuckGoProspector {
 
     pub async fn discover_leads(&self, queries: &[String]) -> Result<Vec<Lead>> {
         let mut leads = Vec::new();
-        let email_re =
-            Regex::new(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b").expect("bad regex");
+        let email_re = Regex::new(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b")
+            .map_err(|e| anyhow!("bad regex: {e}"))?;
 
         for query in queries {
             let results = self.search(query, 5).await.unwrap_or_default();
@@ -140,11 +138,11 @@ pub struct SearchResult {
 
 fn parse_ddg_url(href: &str) -> String {
     if let Some(start) = href.find("uddg=") {
-        let rest = &href[start + 5..];
+        let rest = href.get(start + 5..).unwrap_or_default();
         let end = rest.find('&').unwrap_or(rest.len());
-        let encoded = &rest[..end];
+        let encoded = rest.get(..end).unwrap_or_default();
         return urlencoding::decode(encoded)
-            .map(|c| c.to_string())
+            .map(std::borrow::Cow::into_owned)
             .unwrap_or_default();
     }
     if href.starts_with("http") {
@@ -155,7 +153,7 @@ fn parse_ddg_url(href: &str) -> String {
 }
 
 fn extract_domain(url: &str) -> String {
-    let no_proto = url.split_once("://").map(|(_, rest)| rest).unwrap_or(url);
+    let no_proto = url.split_once("://").map_or(url, |(_, rest)| rest);
     let domain = no_proto.split('/').next().unwrap_or("");
     let domain = domain.split(':').next().unwrap_or(domain);
     if domain.contains('.') {
@@ -169,7 +167,10 @@ fn extract_emails(text: &str, re: &Regex) -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
     let mut result = Vec::new();
     for cap in re.captures_iter(text) {
-        let email = cap.get(0).map(|m| m.as_str().to_lowercase()).unwrap_or_default();
+        let email = cap
+            .get(0)
+            .map(|m| m.as_str().to_lowercase())
+            .unwrap_or_default();
         if email.is_empty() {
             continue;
         }

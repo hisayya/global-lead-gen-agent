@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
@@ -15,21 +15,21 @@ pub struct Sender {
 }
 
 impl Sender {
-    pub fn new(cfg: &AppConfig) -> Self {
+    pub fn new(cfg: &AppConfig) -> Result<Self> {
         let creds = Credentials::new(cfg.smtp_user.clone(), cfg.smtp_pass.clone());
 
         let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&cfg.smtp_host)
-            .expect("failed to create SMTP transport")
+            .map_err(|e| anyhow!("failed to create SMTP transport: {e}"))?
             .port(cfg.smtp_port)
             .credentials(creds)
             .build();
 
-        Self {
+        Ok(Self {
             mailer,
             from_name: cfg.smtp_from_name.clone(),
             from_addr: cfg.smtp_from_addr.clone(),
             physical_addr: cfg.sender_physical_addr.clone(),
-        }
+        })
     }
 
     pub async fn send_email(&self, lead: &Lead, draft: &EmailDraft) -> Result<()> {

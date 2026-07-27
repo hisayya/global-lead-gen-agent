@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use regex::Regex;
 use reqwest::Client;
 use scraper::{Html, Selector};
@@ -9,13 +9,13 @@ pub struct WebsiteScraper {
 }
 
 impl WebsiteScraper {
-    pub fn new(user_agent: String) -> Self {
+    pub fn new(user_agent: String) -> Result<Self> {
         let client = Client::builder()
             .user_agent(user_agent)
             .timeout(std::time::Duration::from_secs(20))
             .build()
-            .expect("failed to build reqwest client");
-        Self { client }
+            .map_err(|e| anyhow!("failed to build reqwest client: {e}"))?;
+        Ok(Self { client })
     }
 
     pub async fn fetch_pages(&self, base_url: &str) -> Result<WebsiteContent> {
@@ -26,10 +26,17 @@ impl WebsiteScraper {
         let home = self.fetch_page(&base).await.unwrap_or_default();
         pages.push(PageContent {
             path: "/".to_string(),
-            text: home.clone(),
+            text: home,
         });
 
-        let sub_paths = ["/about", "/about-us", "/team", "/services", "/contact", "/careers"];
+        let sub_paths = [
+            "/about",
+            "/about-us",
+            "/team",
+            "/services",
+            "/contact",
+            "/careers",
+        ];
         for path in sub_paths {
             let url = format!("{base}{path}");
             if let Some(content) = self.fetch_page(&url).await {
@@ -86,13 +93,12 @@ pub struct PageContent {
 }
 
 fn normalize_base_url(url: &str) -> String {
-    let url = if !url.starts_with("http") {
-        format!("https://{url}")
-    } else {
+    let url = if url.starts_with("http") {
         url.to_string()
+    } else {
+        format!("https://{url}")
     };
-    let url = url.trim_end_matches('/').to_string();
-    url
+    url.trim_end_matches('/').to_string()
 }
 
 fn extract_text(html: &str) -> String {
@@ -100,12 +106,12 @@ fn extract_text(html: &str) -> String {
 
     let mut parts = Vec::new();
 
-    if let Ok(title_sel) = Selector::parse("title") {
-        if let Some(title) = document.select(&title_sel).next() {
-            let t: String = title.text().collect();
-            if !t.trim().is_empty() {
-                parts.push(format!("TITLE: {}", t.trim()));
-            }
+    if let Ok(title_sel) = Selector::parse("title")
+        && let Some(title) = document.select(&title_sel).next()
+    {
+        let t: String = title.text().collect();
+        if !t.trim().is_empty() {
+            parts.push(format!("TITLE: {}", t.trim()));
         }
     }
 
@@ -131,20 +137,21 @@ fn extract_text(html: &str) -> String {
 
     if let Ok(a_sel) = Selector::parse("a") {
         for a in document.select(&a_sel) {
-            if let Some(href) = a.attr("href") {
-                if href.contains("mailto:") {
-                    parts.push(format!("EMAIL: {}", href.replace("mailto:", "")));
-                }
+            if let Some(href) = a.attr("href")
+                && href.contains("mailto:")
+            {
+                parts.push(format!("EMAIL: {}", href.replace("mailto:", "")));
             }
         }
     }
 
-    let email_re = Regex::new(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b").unwrap();
-    for cap in email_re.captures_iter(html) {
-        if let Some(m) = cap.get(0) {
-            let email = m.as_str().to_lowercase();
-            if !email.contains("example.com") && !email.contains("sentry") {
-                parts.push(format!("EMAIL: {email}"));
+    if let Ok(email_re) = Regex::new(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b") {
+        for cap in email_re.captures_iter(html) {
+            if let Some(m) = cap.get(0) {
+                let email = m.as_str().to_lowercase();
+                if !email.contains("example.com") && !email.contains("sentry") {
+                    parts.push(format!("EMAIL: {email}"));
+                }
             }
         }
     }
