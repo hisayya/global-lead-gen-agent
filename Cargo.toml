@@ -47,6 +47,7 @@ future_incompatible = { level = "deny", priority = -1 }
 nonstandard_style = { level = "deny", priority = -1 }
 unexpected_cfgs = "deny"
 dead_code = "allow"
+linker_messages = "allow"
 
 [lints.clippy]
 all = { level = "deny", priority = -1 }
