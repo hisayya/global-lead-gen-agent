@@ -1,5 +1,10 @@
 # global-lead-gen-agent (Global Dev Radar)
 
+![Rust](https://img.shields.io/badge/Rust-000000?style=flat-square&logo=rust&logoColor=white)
+![GitHub stars](https://img.shields.io/github/stars/hisayya/global-lead-gen-agent?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
+
+
 > **A Rust agent that scans businesses worldwide for software-development opportunities.**
 
 `Global Dev Radar` discovers, enriches, and scores companies that are likely to need software development services — then helps you engage them. Think of it as a **lead-generation pipeline for freelancers and dev shops**, written in strict, safe Rust.
