@@ -89,7 +89,7 @@ src/
   scorer.rs           # lead scoring
   diagnostician.rs    # scoring explanations
   llm.rs              # optional LLM enrichment
-(design specs available on request)
+[query pool](docs/queries/100-search-queries.md) | design specs available on request
 ```
 
 ---

@@ -138,7 +138,7 @@ async fn run(cli: Cli) -> Result<()> {
 
 fn load_queries(queries_file: Option<String>) -> Result<Vec<String>> {
     let path =
-        queries_file.unwrap_or_else(|| "docs/superpowers/specs/100-search-queries.md".to_string());
+        queries_file.unwrap_or_else(|| "docs/queries/100-search-queries.md".to_string());
 
     let content = fs::read_to_string(&path)
         .with_context(|| format!("failed to read queries file: {path}"))?;
