@@ -43,6 +43,13 @@
         └───────────────┘               └───────────────┘
 ```
 
+## 💡 Use cases
+
+- **Freelancers drowning in research** — you're spending a couple of hours a day hunting for who might need dev work. Let the agent scan, enrich, and score companies so you only look at the promising ones.
+- **No more spray-and-pray outreach** — you don't want to blast generic emails. The scorer + diagnostician tell you *why* each lead is worth contacting, so outreach is targeted, not spammy.
+- **Teams that need a repeatable pipeline** — you want a systemized, scriptable way to feed your sales funnel with qualified leads every week, not a one-off scraper.
+
+
 ---
 
 ## 🚀 Getting started
