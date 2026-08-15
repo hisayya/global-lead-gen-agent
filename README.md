@@ -89,7 +89,7 @@ src/
   scorer.rs           # lead scoring
   diagnostician.rs    # scoring explanations
   llm.rs              # optional LLM enrichment
-docs/superpowers/specs/  # design specs
+(design specs available on request)
 ```
 
 ---

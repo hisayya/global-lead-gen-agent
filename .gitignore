@@ -4,3 +4,10 @@ data/
 *.db
 *.db-wal
 *.db-shm
+
+# AI tool artifacts
+.workbuddy/
+.claude/
+.cursor/
+CLAUDE.md
+AGENTS.md
